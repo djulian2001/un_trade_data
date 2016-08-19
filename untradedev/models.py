@@ -22,4 +22,7 @@ class SrcFiles( CommonBase ):
 	country_name = Column( String(127), nullable=False )
 	data_source = Column( String(255), nullable=False, default="http://unctad.org/en/Pages/DIAE/FDI%20Statistics/FDI-Statistics-Bilateral.aspx" )
 
-	
+
+class TblNew( CommonBase ):
+	__tablename__ = "tab_one"
+	col1 = Column( String(15), nullable=True, default='yeah data' )

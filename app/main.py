@@ -1,6 +1,8 @@
 from scrape import Scraper
 from db import Db
-from exceldata import ExcelData
+from excelbook import ExcelBook
+from excelsheet import ExcelSheet
+import sys
 
 def main():
 
@@ -8,33 +10,45 @@ def main():
 
 	# scrape = Scraper()
 	"""The Scraper() class works, but don't want to kill site with my dev hits"""
+
+	# print( scrape.remoteFiles )
+
+	# sys.exit()
+	
 	remoteFiles = [
-		('Afghanistan', '/home/vagrant/downloads/webdiaeia2014d3_AFG.xls'),
-		('Albania', '/home/vagrant/downloads/webdiaeia2014d3_ALB.xls'),
-		('Algeria', '/home/vagrant/downloads/webdiaeia2014d3_DZA.xls'),
-		('American Samoa', '/home/vagrant/downloads/webdiaeia2014d3_ASM.xls'),
-		('Angola', '/home/vagrant/downloads/webdiaeia2014d3_AGO.xls'),
-		('Anguilla', '/home/vagrant/downloads/webdiaeia2014d3_AIA.xls'),
-		('Antigua and Barbuda', '/home/vagrant/downloads/webdiaeia2014d3_ATG.xls'),
-		('Argentina', '/home/vagrant/downloads/webdiaeia2014d3_ARG.xls'),
-		('Armenia', '/home/vagrant/downloads/webdiaeia2014d3_ARM.xls'),
-		('Aruba', '/home/vagrant/downloads/webdiaeia2014d3_ABW.xls'), ]
+		('Afghanistan', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_AFG.xls'),
+		('Albania', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_ALB.xls'),
+		('Algeria', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_DZA.xls'),
+		('American Samoa', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_ASM.xls'),
+		('Angola', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_AGO.xls'),
+		('Anguilla', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_AIA.xls'),
+		('Antigua and Barbuda', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_ATG.xls'),
+		('Argentina', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_ARG.xls'),
+		('Armenia', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_ARM.xls'),
+		('Aruba', 'http://unctad.org/Sections/dite_fdistat/docs/webdiaeia2014d3_ABW.xls'), ]
 
 	# for remoteFile in scrape.remoteFiles:
 	for remoteFile in remoteFiles:
 
+		anXlsBook = ExcelBook( db, remoteFile )
 
-		# downloads the an xls file
-		# workBookPath = scrape.downloadFile( remoteFile[1] )
-		
-		workBookPath = remoteFile[1]
+		inflowsSheet = anXlsBook.xlsBook.sheet_by_name("inflows")
 
-		xlsData = ExcelData( workBookPath, db, remoteFile )
+		sheetNames = ['inflows', 'outflows','instock', 'outstock']
+		for sheetName in sheetNames:
+			sheetObj = ExcelSheet( db, anXlsBook, sheetName )
 
-		print(xlsData)
+			# print("book {}, sheet {} total rows {}: total columns {} ".format( anXlsBook.fileName, sheetObj.name, sheetObj.totalRows, sheetObj.totalColumns ) )
+			# print(sheetObj.investmentType)
+			# print(sheetObj.investmentContext)
+			# print(sheetObj.investmentScale)
+			# print(sheetObj.investmentSources)
+			# print(sheetObj.investmentNotess)
 
-	# afg = scrape.remoteFiles[0]
-	# scrape.downloadFile( afg[1] )
+
+
+
+
 
 if __name__=="__main__":
 	main()

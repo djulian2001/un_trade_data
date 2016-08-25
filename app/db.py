@@ -20,7 +20,7 @@ class Db( object ):
 		UnTradeBase.metadata.drop_all( engine )
 		UnTradeBase.metadata.create_all( engine )
 
-		Session = sessionmaker( autoflush=False )
+		Session = sessionmaker( autoflush=True )
 		Session.configure( bind=engine )
 
 		self.session = Session()

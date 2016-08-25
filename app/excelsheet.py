@@ -1,8 +1,10 @@
-from models import Investments
+from models import Investments, UnFileSheets
 from utilities import hashThisList
 import xlrd
 import datetime
-
+# import warnings
+			
+# warnings.filterwarnings("error")
 
 class ExcelSheet( object ):
 	"""docstring for ExcelSheet"""
@@ -10,25 +12,49 @@ class ExcelSheet( object ):
 		self.db = db
 		self.bookObj = bookObj
 		self.xlsSheet = bookObj.xlsBook.sheet_by_name( sheet )
-		self.name = self.xlsSheet.name
+		self.sheetName = sheet
+		
 		self.cleanRows = None
 		self.totalRows = self.xlsSheet.nrows
 		self.totalColumns = self.xlsSheet.ncols
-		self.countryName = self.xlsSheet.cell_value(0,0)
-		self.investmentType = sheet
-		self.investmentContext = self.xlsSheet.cell_value(1,0)
-		self.investmentScale = self.xlsSheet.cell_value(2,0)
-		self.investmentSources = '; '.join( [ x for x in self.xlsSheet.col_values(0) if 'Source:' in x ] )
-		self.investmentNotes = ': '.join([ y for y in self.xlsSheet.col_values(0) if 'Note:' in y ] )
 		
-		if sheet =='inflows' or sheet == 'instock':
-			self.inExtractData()
-		else:
-			self.outExtractData()
+		self.sheetObj = self.makeSheet()
 
-		db.session.commit()
+		self.extractData()
 
+		self.sheetObj.sheet_data_rows = self.cleanRows
 
+		self.db.session.add( self.sheetObj )
+		self.db.session.commit()
+
+	def makeSheet( self ):
+
+		try:
+			sheetObj = UnFileSheets()
+			sheetObj.un_file_id = self.bookObj.bookId
+			sheetObj.source_hash = hash( self.xlsSheet )
+			sheetObj.investment_type = self.sheetName, 
+			sheetObj.investment_context = str( self.xlsSheet.cell_value(1,0) )
+			sheetObj.investment_scale = str( self.xlsSheet.cell_value(2,0) )
+			sheetObj.investment_sources = '; '.join( [ self.encodeLabel(x) for x in self.xlsSheet.col_values(0) if 'Source:' in x ]  )
+			sheetObj.investment_notes = '; '.join( [ self.encodeLabel(y) for y in self.xlsSheet.col_values(0) if 'Note:' in y ]  )
+			sheetObj.sheet_max_columns = self.xlsSheet.ncols
+			sheetObj.sheet_max_rows = self.xlsSheet.nrows
+			sheetObj.created_at = datetime.datetime.utcnow().strftime( '%Y-%m-%d %H:%M:%S' )
+
+			sheetObj.sheet_country_name = self.xlsSheet.cell_value(0,0)
+		
+		except UnicodeEncodeError as e:
+			sheetObj.sheet_country_name = self.encodeLabel( self.xlsSheet.cell_value(0,0) )
+
+		finally:
+			self.db.session.add( sheetObj )
+			
+			self.db.session.commit()
+			
+			self.sheetId = sheetObj.id
+
+			return sheetObj
 
 	def checkThisRow( self, noneTest, holdValue ):
 		ignoredValues = [
@@ -44,75 +70,149 @@ class ExcelSheet( object ):
 		else:
 			return False
 	
+	def sheetPattern( self, subRow ):
+		"""Each sheet has a header row, the following are the data value patterns for thos rows.  If they don't match it will print out the non-match"""
+		patterns=[
+			[u'Region / economy', u'', u'', u'', u'', u'', 2001.0, 2002.0, 2003.0, 2004.0, 2005.0, 2006.0, 2007.0, 2008.0, 2009.0, 2010.0, 2011.0, 2012.0],
+			[u'Region / economy', u'', u'', u'', u'', u'', 2001.0, u'2002', u'2003', u'2004', u'2005', u'2006', u'2007', u'2008', u'2009', u'2010', u'2011', u'2012'],
+			[u'Reporting economy', 2001.0, u'2002', u'2003', u'2004', u'2005', u'2006', u'2007', u'2008', u'2009', u'2010', u'2011', u'2012'],
+			[u'Reporting economy', 2001.0, 2002.0, 2003.0, 2004.0, 2005.0, 2006.0, 2007.0, 2008.0, 2009.0, 2010.0, 2011.0, 2012.0], ]
+		
+		patternsB = [	
+			[u'Region / economy', u'', u'', u'', u'', u'', 2001.0, u'2002', u'2003', u'2004', u'2005', u'2006', u'2007', u'2008', u'2009', u'2010', u'2011', u'2012', u'', u'', u''], ]
+		
+		if subRow in patterns:
+			# print(subRow)
+			return ( self.totalColumns-12, self.totalColumns, )
+		elif subRow in patternsB:
+			return ( self.totalColumns-12-3, self.totalColumns-3, )
+		else:
+			print('NO MATCH SHEET PATTERN')
+			print subRow
 
-
-	def inExtractData( self ):
-
-		cleanRows = 0
-		for inRow in range(3,self.xlsSheet.nrows):
-			noneTest = 0
-			holdValue = None
-			for inCol in range(0,5):
-
-				subRow = self.xlsSheet.row_values(inRow, 0, 5)
-				print subRow
-				testValue = self.xlsSheet.cell_value( inRow, inCol )
-				
-				if testValue is not None:
-					holdValue = testValue
-					# print(holdValue)
-				else:
-					++noneTest
-
-
-				# print('{} noneTest:   {}').format(noneTest, testValue)
-
-			# if self.checkThisRow( noneTest, holdValue ):
-			# 	# print(holdValue)
-			# 	dataRecord = Investments()
-			# 	dataRecord.un_file_id 			= self.xlsBook.bookId
-			# 	dataRecord.country_name 		= self.countryName
-			# 	dataRecord.investment_context 	= self.investmentContext
-			# 	dataRecord.investment_type		= self.investmentType
-			# 	dataRecord.investment_economy 	= holdValue
-			# 	dataRecord.year_2001 			= self.xlsSheet.cell_value( inRow, 6)
-			# 	dataRecord.year_2002			= self.xlsSheet.cell_value( inRow, 7)
-			# 	dataRecord.year_2003			= self.xlsSheet.cell_value( inRow, 8)
-			# 	dataRecord.year_2004			= self.xlsSheet.cell_value( inRow, 9)
-			# 	dataRecord.year_2005			= self.xlsSheet.cell_value( inRow, 10)
-			# 	dataRecord.year_2006			= self.xlsSheet.cell_value( inRow, 11)
-			# 	dataRecord.year_2007			= self.xlsSheet.cell_value( inRow, 12)
-			# 	dataRecord.year_2008			= self.xlsSheet.cell_value( inRow, 13)
-			# 	dataRecord.year_2009			= self.xlsSheet.cell_value( inRow, 14)
-			# 	dataRecord.year_2010			= self.xlsSheet.cell_value( inRow, 15)
-			# 	dataRecord.year_2011			= self.xlsSheet.cell_value( inRow, 16)
-			# 	dataRecord.year_2012			= self.xlsSheet.cell_value( inRow, 17)
-			# 	dataRecord.investment_sources 	= self.investmentSources
-			# 	dataRecord.investment_notes		= self.investmentNotes
-			# 	dataRecord.created_at			= datetime.datetime.utcnow().strftime( '%Y-%m-%d %H:%M:%S' )
-
-			# 	++cleanRows
-
-				# self.db.session.add( dataRecord )
-
-			# first get the investment_economy value for a row
-
-			# for columns between 0-5 get the value, but only if the rest are none. from 6 - 17
+		
+	def rowPatternCheck( self, rowType ):
+		"""
+			There are less miss patterns to match against then hit patterns.  match the misses and return false.
 			
+			examples:
+			array('B', [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+			[empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'']
+		
+			array('B', [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+			[text:u'Source:  UNCTAD FDI/TNC database, based on data from the Coordinated Direct Investment Survey (CDIS) of IMF.', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'', empty:u'']
+		"""
+		patterns=[
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], ]
+			
+			# [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+		if rowType.tolist() in patterns:
+			return False
+		else:
+			return True
 
 
-			# print(iRow)
+	def cleanTheData( self, aRow ):
+		
+		if len(aRow) == 12 and type(aRow) is list:
+			rules = {
+				"..":0,
+				"":0,
+				"-":0,
+
+				}
+			return [ rules[x.value] if x.value in rules.keys() else x.value for x in aRow  ]
+
+		else:
+			print("RECORD Type: {} and length: {} ".format( len(aRow), type(aRow) ) )
+			return None
+		
+	def findHeaderRow(self, colValues ):
+
+		patterns = [
+			'Reporting economy',
+			'Region / economy' ]
+
+		for x in colValues:
+			
+			if 'economy' in x:
+				print x, colValues.index(x)
 
 
 
+	def extractData( self ):
+		headRowIndex = 4
+		cleanedRows = 0
 
-	def outExtractData(self):
-		pass
+		columnNeedle = self.xlsSheet.col_values(0, 0, self.xlsSheet.nrows )		
+		headerRow = self.xlsSheet.row_values( headRowIndex, 0, self.totalColumns )
+
+		sheetP = self.sheetPattern( headerRow )
+
+		for inRow in range( headRowIndex + 1, self.xlsSheet.nrows ):
+			rowTypeObj = self.xlsSheet.row_types(inRow,0, sheetP[1] )
+			if self.rowPatternCheck( rowTypeObj ):
+				rowLabelObj = self.xlsSheet.row_slice( inRow, 0, sheetP[0] )
+				rowDataObj = self.xlsSheet.row_slice( inRow, sheetP[0], sheetP[1] )
+
+				# print rowLabelObj, rowTypeObj, rowDataObj
+				rowLabel = [x.value for x in rowLabelObj if x.value ][0]
+				# rowDataObj = self.xlsSheet.row_slice( inRow, sheetP[0], sheetP[1] )
+				badLabels = ['Reporting economy','Region / economy']
+				if rowLabel not in badLabels:				
+					cleanedRow = self.cleanTheData( rowDataObj )
+					if cleanedRow:
+						self.addGoodData( cleanedRow, rowLabel )
+
+						cleanedRows += 1
+						# print "{}.{}".format( self.sheetId,	cleanedRows)
+		self.cleanRows = cleanedRows
+
+	
+	def addGoodData( self, data, label ):
+		try:
+			# print data
+			thisHash = hashThisList( data )
+
+			dataRecord = Investments()
+			dataRecord.source_hash			= thisHash
+			dataRecord.un_sheet_id 			= self.sheetId
+			dataRecord.year_2001 			= data[0]
+			dataRecord.year_2002			= data[1]
+			dataRecord.year_2003			= data[2]
+			dataRecord.year_2004			= data[3]
+			dataRecord.year_2005			= data[4]
+			dataRecord.year_2006			= data[5]
+			dataRecord.year_2007			= data[6]
+			dataRecord.year_2008			= data[7]
+			dataRecord.year_2009			= data[8]
+			dataRecord.year_2010			= data[9]
+			dataRecord.year_2011			= data[10]
+			dataRecord.year_2012			= data[11]
+			dataRecord.created_at			= datetime.datetime.utcnow().strftime( '%Y-%m-%d %H:%M:%S' )
+
+			dataRecord.investment_economy 	= str(label)
 
 
-	def setSheetContext(self):
-		# self.
-		pass
+		except UnicodeEncodeError as e:
+		
+			dataRecord.investment_economy 	= self.encodeLabel( label )
+		
+		# except RuntimeWarning as w:
+		# 	raise w
 
-	def cleanRow(self):
-		pass
+		finally:
+			self.db.session.add( dataRecord )
+
+	def encodeLabel( self, label ):
+		# print  label, label.encode('utf8')
+
+		return label.encode('utf8')
+
+
+

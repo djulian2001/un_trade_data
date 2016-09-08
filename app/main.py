@@ -20,6 +20,7 @@ def main():
 		for sheetName in sheetNames:
 			sheetObj = ExcelSheet( db, anXlsBook, sheetName )
 
+		# sys.exit()
 
 if __name__=="__main__":
 	main()

@@ -11,8 +11,6 @@ class CommonBase(object):
     # new key for keeping record versions. 
     id = Column( Integer, primary_key=True )
     """ID created on the construction of the model"""
-    source_hash = Column( String(64), nullable=False )
-    """The source_hash: A hash of the source record which will indicate if a record has changed"""
     created_at = Column( DateTime, nullable=False )
 
 UnTradeBase = declarative_base( cls=CommonBase )
@@ -23,9 +21,10 @@ class UnFiles( UnTradeBase ):
     file_name = Column( String(127), nullable=False )
     url_country_name = Column( String(127), nullable=False )
     data_source = Column( String(255), nullable=False, default="http://unctad.org/en/Pages/DIAE/FDI%20Statistics/FDI-Statistics-Bilateral.aspx" )
-
-    investment_sheets = relationship( "UnFileSheets", cascade="all, delete-orphan" )
-
+    source_hash = Column( String(64), nullable=False )
+    """The source_hash: A hash of the source record which will indicate if a record has changed"""
+    
+    file_investment_data = relationship( "UnFileSheets", cascade="all, delete-orphan" )
 
 class UnFileSheets( UnTradeBase ):
     __tablename__ = "un_investment_sheet"
@@ -40,24 +39,21 @@ class UnFileSheets( UnTradeBase ):
     sheet_max_rows = Column( Integer, nullable=False )
     sheet_data_rows = Column( Integer, nullable=True )
     
-    investment_data = relationship( "Investments", cascade="all, delete-orphan" )
+    sheet_investment_data = relationship( "RowInvestments", cascade="all, delete-orphan" )
 
-
-class Investments( UnTradeBase ):
-    __tablename__ = "un_investment_data"
+class RowInvestments( UnTradeBase ):
+    __tablename__ = "un_investment_row"
     un_sheet_id = Column( Integer, ForeignKey('un_investment_sheet.id'), nullable=False )
     investment_economy = Column( String(127), nullable=False )
-    year_2001 = Column( Numeric(35,20), nullable=False )
-    year_2002 = Column( Numeric(35,20), nullable=False )
-    year_2003 = Column( Numeric(35,20), nullable=False )
-    year_2004 = Column( Numeric(35,20), nullable=False )
-    year_2005 = Column( Numeric(35,20), nullable=False )
-    year_2006 = Column( Numeric(35,20), nullable=False )
-    year_2007 = Column( Numeric(35,20), nullable=False )
-    year_2008 = Column( Numeric(35,20), nullable=False )
-    year_2009 = Column( Numeric(35,20), nullable=False )
-    year_2010 = Column( Numeric(35,20), nullable=False )
-    year_2011 = Column( Numeric(35,20), nullable=False )
-    year_2012 = Column( Numeric(35,20), nullable=False )
+    row_non_zeros = Column( Integer, nullable=True )
+    
+    row_investment_data = relationship( "CellInvestments", cascade="all, delete-orphan" )
+
+class CellInvestments( UnTradeBase ):
+    __tablename__ = "un_investment_data"
+    un_row_id = Column( Integer, ForeignKey( 'un_investment_row.id' ), nullable=False )
+    year = Column( Integer, nullable=False )
+    amount = Column( Numeric(35,20), nullable=False )
+
 
 

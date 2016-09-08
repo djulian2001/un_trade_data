@@ -1,4 +1,4 @@
-from models import Investments, UnFileSheets
+from models import RowInvestments, UnFileSheets, CellInvestments
 from utilities import hashThisList
 import xlrd
 import datetime
@@ -32,7 +32,7 @@ class ExcelSheet( object ):
 		try:
 			sheetObj = UnFileSheets()
 			sheetObj.un_file_id = self.bookObj.bookId
-			sheetObj.source_hash = hash( self.xlsSheet )
+			# sheetObj.source_hash = hash( self.xlsSheet )
 			sheetObj.investment_type = self.sheetName, 
 			sheetObj.investment_context = str( self.xlsSheet.cell_value(1,0) )
 			sheetObj.investment_scale = str( self.xlsSheet.cell_value(2,0) )
@@ -175,43 +175,43 @@ class ExcelSheet( object ):
 
 	
 	def addGoodData( self, data, label ):
-		try:
-			# print data
-			thisHash = hashThisList( data )
-
-			dataRecord = Investments()
-			dataRecord.source_hash			= thisHash
-			dataRecord.un_sheet_id 			= self.sheetId
-			dataRecord.year_2001 			= data[0]
-			dataRecord.year_2002			= data[1]
-			dataRecord.year_2003			= data[2]
-			dataRecord.year_2004			= data[3]
-			dataRecord.year_2005			= data[4]
-			dataRecord.year_2006			= data[5]
-			dataRecord.year_2007			= data[6]
-			dataRecord.year_2008			= data[7]
-			dataRecord.year_2009			= data[8]
-			dataRecord.year_2010			= data[9]
-			dataRecord.year_2011			= data[10]
-			dataRecord.year_2012			= data[11]
-			dataRecord.created_at			= datetime.datetime.utcnow().strftime( '%Y-%m-%d %H:%M:%S' )
-
-			dataRecord.investment_economy 	= str(label)
-
-
-		except UnicodeEncodeError as e:
 		
-			dataRecord.investment_economy 	= self.encodeLabel( label )
+		dataRecord = RowInvestments()
+		dataRecord.un_sheet_id 			= self.sheetId
+		dataRecord.created_at			= datetime.datetime.utcnow().strftime( '%Y-%m-%d %H:%M:%S' )
 		
-		# except RuntimeWarning as w:
-		# 	raise w
+		dataRecord.investment_economy 	= str( label.encode('utf8') )
 
-		finally:
-			self.db.session.add( dataRecord )
+		self.db.session.add( dataRecord )
+		self.db.session.commit()
+		
+		nonZero = 0
+
+		for cell in enumerate( data ):
+			yearValue = cell[0] + 2001
+			
+			if cell[1] != 0:
+				
+				cellObj = CellInvestments()
+				
+				cellObj.un_row_id = dataRecord.id
+				cellObj.year = yearValue
+				cellObj.amount = cell[1]
+				cellObj.created_at = datetime.datetime.utcnow().strftime( '%Y-%m-%d %H:%M:%S' )
+				
+				self.db.session.add( cellObj)
+				nonZero += 1
+			
+
+		dataRecord.row_non_zeros = nonZero
+
+		self.db.session.add( dataRecord )
+
+		self.db.session.commit()
+
 
 	def encodeLabel( self, label ):
 		# print  label, label.encode('utf8')
-
 		return label.encode('utf8')
 
 

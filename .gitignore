@@ -7,3 +7,4 @@ downloads/*
 *.egg-info
 .vagrant/*
 authorized_keys
+unTradeDevExcelFiles.zip

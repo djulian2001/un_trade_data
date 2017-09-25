@@ -6,5 +6,4 @@ downloads/*
 *.pyc
 *.egg-info
 .vagrant/*
-Vagrantfile
 authorized_keys

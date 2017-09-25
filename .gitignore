@@ -1,5 +1,6 @@
 logs/*
 docs/*
+downloads/*
 .DS_Store
 .project
 *.pyc
